@@ -17,4 +17,16 @@ void Tick_Init(void);
 void Tick_DelayMs(uint32_t ms);
 void Tick_DelayUs(uint32_t us);
 
+/*=============================================================================
+ * @brief   获取当前系统滴答计数（ms）
+ * @return  uint32_t 当前 tick_ms 值
+ * @note    此函数为内联函数，无调用开销。
+ *          tick_ms 为 uint32_t，约 49.7 天溢出一次。
+ *          使用无符号减法 (now - last) 可安全处理溢出回绕。
+ *===========================================================================*/
+static inline uint32_t systick_get_ms(void)
+{
+    return tick_ms;
+}
+
 #endif /* __TICK_H */

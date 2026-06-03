@@ -1,5 +1,6 @@
 #include "debug.h"
 #include "schedule.h"
+#include "Tick.h"
 
 typedef struct {
     uint32_t interval_ms;
