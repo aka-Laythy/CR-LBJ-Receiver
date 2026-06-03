@@ -1,1 +1,10 @@
-.aider*
+﻿obj/
+*.o
+*.elf
+*.hex
+*.map
+*.lst
+*.d
+.mrs/
+*.launch
+*.wvproj
