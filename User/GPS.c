@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+extern volatile uint32_t tick_ms;
+
 /*=============================================================================
  * 环形缓冲区数据结构
  *===========================================================================*/
@@ -29,6 +31,7 @@ static volatile bool    gps_line_ready = false;
  *===========================================================================*/
 static volatile GPS_Data_TypeDef gps_data_buffer = {0};
 static volatile bool             gps_data_valid   = false;
+static volatile uint32_t         gps_last_rx_time = 0;
 
 /*=============================================================================
  * 内部静态函数：环形缓冲区操作
@@ -483,6 +486,15 @@ static bool parse_RMC(const char *buf, GPS_Data_TypeDef *data)
  *===========================================================================*/
 void GPS_ParseNMEA(void)
 {
+    // 超时检测：如果行缓冲区有数据但超过100ms无新数据，强制提交
+    if (gps_line_idx > 0 && (tick_ms - gps_last_rx_time) > 100) {
+        __disable_irq();
+        gps_line_buf[gps_line_idx] = '\0';
+        gps_line_ready = true;
+        gps_line_idx = 0;
+        __enable_irq();
+    }
+
     if (!gps_line_ready) {
         return;
     }
@@ -574,6 +586,8 @@ void USART1_IRQHandler(void)
             /* 行缓冲区溢出，重置 */
             gps_line_idx = 0;
         }
+        
+        gps_last_rx_time = tick_ms;  // 记录收到数据的时间
     }
 
     /* ----- 发送中断 ----- */
