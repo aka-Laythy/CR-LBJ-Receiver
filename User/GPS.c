@@ -212,16 +212,6 @@ uint8_t GPS_IsTxBusy(void)
 }
 
 /*=============================================================================
- * 内部辅助函数：将 NMEA 坐标（ddmm.mmmm）转换为度格式
- *===========================================================================*/
-static double nmea_to_degrees(double nmea_coord)
-{
-    int degrees = (int)(nmea_coord / 100);
-    double minutes = nmea_coord - degrees * 100;
-    return degrees + minutes / 60.0;
-}
-
-/*=============================================================================
  * 内部辅助函数：解析 GGA 语句
  * 格式：$GPGGA,time,lat,N,lon,E,quality,numSats,HDOP,alt,M,sep,M,,*cs
  *===========================================================================*/
@@ -429,11 +419,13 @@ static bool parse_RMC(const char *buf, GPS_Data_TypeDef *data)
     if (beijing_hour >= 24) {
         beijing_hour -= 24;
         beijing_day++;
-        // 简单处理月份天数
+        
+        // 跨日处理：使用北京时间年份判断闰年
         int days_in_month[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-        if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) {
+        if ((beijing_year % 4 == 0 && beijing_year % 100 != 0) || (beijing_year % 400 == 0)) {
             days_in_month[2] = 29;
         }
+        
         if (beijing_day > days_in_month[beijing_month]) {
             beijing_day = 1;
             beijing_month++;
