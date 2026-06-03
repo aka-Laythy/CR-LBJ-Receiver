@@ -16,6 +16,7 @@ int main(void)
 
     while(1)
     {
-        ;
+        GPS_ParseNMEA();
+        Tick_DelayMs(10);
     }
 }

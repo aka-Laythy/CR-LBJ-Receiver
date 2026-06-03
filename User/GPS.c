@@ -21,7 +21,7 @@ static volatile uint8_t   gps_tx_busy = 0;
 /*=============================================================================
  * 全局行缓冲区：用于 NMEA 行读取
  *===========================================================================*/
-#define GPS_LINE_BUF_SIZE  128
+#define GPS_LINE_BUF_SIZE  512
 static volatile char    gps_line_buf[GPS_LINE_BUF_SIZE];
 static volatile uint8_t gps_line_idx = 0;
 static volatile bool    gps_line_ready = false;
@@ -574,7 +574,12 @@ void USART1_IRQHandler(void)
         byte = (uint8_t)USART_ReceiveData(USART1);
         __ring_push(&gps_rx_ring, byte, GPS_RX_BUF_SIZE);
 
-        /* 行读取：检测 '\n' 并填充行缓冲区 */
+        /* 行读取：检测帧头 '$' 和帧尾 '\n' */
+        if (byte == '$') {
+            // 新帧开始，重置行缓冲区
+            gps_line_idx = 0;
+        }
+        
         if (gps_line_idx < GPS_LINE_BUF_SIZE - 1) {
             gps_line_buf[gps_line_idx++] = byte;
             if (byte == '\n') {
