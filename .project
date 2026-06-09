@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <projectDescription>
-  <name>0000----CH32V005F6P6-power-board-ble-pmos</name>
+  <name>CR-LBJ-Receiver-CH32V005-proj</name>
   <comment/>
   <projects/>
   <buildSpec>
@@ -28,6 +28,14 @@
       <matcher>
         <id>org.eclipse.ui.ide.multiFilter</id>
         <arguments>1.0-name-matches-false-false-*.wvproj</arguments>
+      </matcher>
+    </filter>
+    <filter>
+      <name>.kilo</name>
+      <type>6</type>
+      <matcher>
+        <id>org.eclipse.ui.ide.multiFilter</id>
+        <arguments>1.0-name-matches-false-false-*</arguments>
       </matcher>
     </filter>
     <filter>

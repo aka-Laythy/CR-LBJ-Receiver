@@ -91,7 +91,7 @@
               <option id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.addtools.createlisting.1983282875" name="Create extended listing" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.addtools.createlisting" useByScannerDiscovery="false" value="true" valueType="boolean"/>
               <option id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.addtools.printsize.1000761142" name="Print size" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.addtools.printsize" useByScannerDiscovery="false" value="true" valueType="boolean"/>
               <targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="ilg.gnumcueclipse.managedbuild.cross.riscv.targetPlatform.1944008784" isAbstract="false" osList="all" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.targetPlatform"/>
-              <builder buildPath="${workspace_loc:/0000----CH32V005F6P6-power-board-ble-pmos/obj" id="ilg.gnumcueclipse.managedbuild.cross.riscv.builder.1421508906" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="optimal" stopOnErr="true" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.builder"/>
+              <builder buildPath="${workspace_loc:/CR-LBJ-Receiver-CH32V005-proj/obj" id="ilg.gnumcueclipse.managedbuild.cross.riscv.builder.1421508906" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="optimal" stopOnErr="true" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.builder"/>
               <tool id="ilg.gnumcueclipse.managedbuild.cross.riscv.tool.assembler.1244756189" name="GNU RISC-V Cross Assembler" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.tool.assembler">
                 <option id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.assembler.usepreprocessor.1692176068" name="Use preprocessor" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.assembler.usepreprocessor" useByScannerDiscovery="false" value="true" valueType="boolean"/>
                 <option id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.assembler.nostdinc.821897907" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.assembler.nostdinc" useByScannerDiscovery="true" value="false" valueType="boolean"/>
@@ -256,7 +256,7 @@
             </toolChain>
           </folderInfo>
           <sourceEntries>
-            <entry excluding="KIMI/legacy/USART.c|KIMI/legacy/USART.h|KIMI/others/GPS.c|KIMI/others/GPS.h" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+            <entry excluding="KIMI/legacy/USART.c|KIMI/legacy/USART.h|KIMI/others/GPS.c|KIMI/others/GPS.h|0-AI_Files|.aider.tags.cache.v4|.git|.kilo" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
           </sourceEntries>
         </configuration>
       </storageModule>
@@ -353,7 +353,7 @@
               <option id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.addtools.createlisting.1983282875" name="Create extended listing" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.addtools.createlisting" useByScannerDiscovery="false" value="true" valueType="boolean"/>
               <option id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.addtools.printsize.1000761142" name="Print size" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.addtools.printsize" useByScannerDiscovery="false" value="true" valueType="boolean"/>
               <targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="ilg.gnumcueclipse.managedbuild.cross.riscv.targetPlatform.1944008784" isAbstract="false" osList="all" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.targetPlatform"/>
-              <builder buildPath="${workspace_loc:/0000----CH32V005F6P6-power-board-ble-pmos/dbg" id="ilg.gnumcueclipse.managedbuild.cross.riscv.builder.1421508906" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="optimal" stopOnErr="true" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.builder"/>
+              <builder buildPath="${workspace_loc:/CR-LBJ-Receiver-CH32V005-proj/dbg" id="ilg.gnumcueclipse.managedbuild.cross.riscv.builder.1421508906" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="optimal" stopOnErr="true" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.builder"/>
               <tool id="ilg.gnumcueclipse.managedbuild.cross.riscv.tool.assembler.1244756189" name="GNU RISC-V Cross Assembler" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.tool.assembler">
                 <option id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.assembler.usepreprocessor.1692176068" name="Use preprocessor" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.assembler.usepreprocessor" useByScannerDiscovery="false" value="true" valueType="boolean"/>
                 <option id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.assembler.nostdinc.821897907" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.assembler.nostdinc" useByScannerDiscovery="true" value="false" valueType="boolean"/>

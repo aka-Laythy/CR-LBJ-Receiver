@@ -1,5 +1,0 @@
-1. 单片机型号是CH32V005F6P6，数据手册是CH32V006-005DS0.PDF（注意里面是CH32V005/006整个系列的10余型单片机，除通用信息外必须看CH32V005F6P6这一型号的）。
-2. 对于非代码文件，必须存储于此（/0-AI_Files 文件夹内），包括但不限于生成的python调试文件等。
-3. 不要编译构建工程。
-4. DX-BT311蓝牙模组接线：与单片机USART2_AF_3（三号重映射引脚）：PD2(TX)、PD3(RX) ；RST、BRTS、CTS、LINK都悬空。
-5. DX-GP21定位模组接线：与单片机USART1：PD5(TX)、PD6(RX)；WAKE_UP、RESET、ANT_ON、SET都悬空；有纽扣VCC_Backup供电。

@@ -1,6 +1,5 @@
 #include "GPS.h"
 #include <string.h>
-#include <stdlib.h>
 
 extern volatile uint32_t tick_ms;
 
@@ -22,9 +21,9 @@ static volatile uint8_t   gps_tx_busy = 0;
  * 全局行缓冲区：用于 NMEA 行读取
  *===========================================================================*/
 #define GPS_LINE_BUF_SIZE  512
-static volatile char    gps_line_buf[GPS_LINE_BUF_SIZE];
-static volatile uint8_t gps_line_idx = 0;
-static volatile bool    gps_line_ready = false;
+static volatile char     gps_line_buf[GPS_LINE_BUF_SIZE];
+static volatile uint16_t gps_line_idx = 0;
+static volatile bool     gps_line_ready = false;
 
 /*=============================================================================
  * 全局缓冲器：保存上一次有效数据
@@ -32,6 +31,8 @@ static volatile bool    gps_line_ready = false;
 static volatile GPS_Data_TypeDef gps_data_buffer = {0};
 static volatile bool             gps_data_valid   = false;
 static volatile uint32_t         gps_last_rx_time = 0;
+static volatile uint32_t         gps_isr_count = 0;
+static volatile uint32_t         gps_line_ready_count = 0;
 
 /*=============================================================================
  * 内部静态函数：环形缓冲区操作
@@ -215,26 +216,48 @@ uint8_t GPS_IsTxBusy(void)
 }
 
 /*=============================================================================
+ * NMEA 坐标字符串 → 微度（degrees × 1e6），无浮点运算
+ * 输入：NMEA 格式 "DDDMM.MMMM"（如 "3723.2475"）
+ * 输出：37°23.2475' → 37 + 23.2475/60 = 37.387458 → 37387458
+ *===========================================================================*/
+static int32_t nmea_to_udeg(const char *str)
+{
+    const char *p = str;
+    int32_t int_part = 0;
+    while (*p >= '0' && *p <= '9') {
+        int_part = int_part * 10 + (*p - '0');
+        p++;
+    }
+    int32_t deg     = int_part / 100;
+    int32_t min_int = int_part % 100;
+
+    int32_t min_frac = 0;
+    int32_t frac_mul = 1000000;
+    if (*p == '.') {
+        p++;
+        while (*p >= '0' && *p <= '9' && frac_mul > 1) {
+            min_frac = min_frac * 10 + (*p - '0');
+            frac_mul /= 10;
+            p++;
+        }
+    }
+    return deg * 1000000 + (min_int * 1000000 + min_frac * frac_mul) / 60;
+}
+
+/*=============================================================================
  * 内部辅助函数：解析 GGA 语句
  * 格式：$GPGGA,time,lat,N,lon,E,quality,numSats,HDOP,alt,M,sep,M,,*cs
  *===========================================================================*/
 static bool parse_GGA(const char *buf, GPS_Data_TypeDef *data)
 {
-    // 查找 $GPGGA 或 $GNGGA
     const char *gga = strstr(buf, "$GPGGA");
     if (!gga) gga = strstr(buf, "$GNGGA");
     if (!gga) return false;
 
-    // 找到行尾
     const char *line_end = strchr(gga, '\n');
     if (!line_end) line_end = strchr(gga, '\r');
     if (!line_end) line_end = gga + strlen(gga);
 
-    // 临时截断
-    char save_char = *line_end;
-    *((char*)line_end) = '\0';
-
-    // 手动解析字段
     const char *p = gga;
     int comma_count = 0;
     char lat_str[16] = {0};
@@ -249,30 +272,30 @@ static bool parse_GGA(const char *buf, GPS_Data_TypeDef *data)
             p++;
             const char *field_start = p;
             int field_len = 0;
-            while (*p && *p != ',' && *p != '*') {
+            while (*p && p < line_end && *p != ',' && *p != '*') {
                 p++;
                 field_len++;
             }
             switch (comma_count) {
-                case 2: // 纬度 ddmm.mmmm
+                case 2:
                     if (field_len > 0 && field_len < 16) {
                         memcpy(lat_str, field_start, field_len);
                         lat_str[field_len] = '\0';
                     }
                     break;
-                case 3: // N/S
+                case 3:
                     if (field_len > 0) lat_dir = *field_start;
                     break;
-                case 4: // 经度 dddmm.mmmm
+                case 4:
                     if (field_len > 0 && field_len < 16) {
                         memcpy(lon_str, field_start, field_len);
                         lon_str[field_len] = '\0';
                     }
                     break;
-                case 5: // E/W
+                case 5:
                     if (field_len > 0) lon_dir = *field_start;
                     break;
-                case 6: // 定位质量
+                case 6:
                     if (field_len > 0) fix_quality = *field_start;
                     break;
             }
@@ -281,9 +304,6 @@ static bool parse_GGA(const char *buf, GPS_Data_TypeDef *data)
         }
     }
 
-    // 恢复
-    *((char*)line_end) = save_char;
-
     // 验证
     if (lat_str[0] == 0 || lon_str[0] == 0 ||
         (lat_dir != 'N' && lat_dir != 'S') ||
@@ -291,19 +311,13 @@ static bool parse_GGA(const char *buf, GPS_Data_TypeDef *data)
         return false;
     }
 
-    // 转换纬度
-    double lat_val = strtod(lat_str, NULL);
-    int lat_deg = (int)(lat_val / 100);
-    double lat_min = lat_val - lat_deg * 100;
-    data->latitude = lat_deg + lat_min / 60.0;
-    data->lat_dir = lat_dir;
+    // 转换纬度（NMEA → 微度）
+    data->latitude  = nmea_to_udeg(lat_str);
+    data->lat_dir   = lat_dir;
 
-    // 转换经度
-    double lon_val = strtod(lon_str, NULL);
-    int lon_deg = (int)(lon_val / 100);
-    double lon_min = lon_val - lon_deg * 100;
-    data->longitude = lon_deg + lon_min / 60.0;
-    data->lon_dir = lon_dir;
+    // 转换经度（NMEA → 微度）
+    data->longitude = nmea_to_udeg(lon_str);
+    data->lon_dir   = lon_dir;
 
     // 定位质量 0=无效, 1=GPS, 2=DGPS
     data->valid = (fix_quality >= '1');
@@ -317,21 +331,14 @@ static bool parse_GGA(const char *buf, GPS_Data_TypeDef *data)
  *===========================================================================*/
 static bool parse_RMC(const char *buf, GPS_Data_TypeDef *data)
 {
-    // 查找 $GPRMC 或 $GNRMC
     const char *rmc = strstr(buf, "$GPRMC");
     if (!rmc) rmc = strstr(buf, "$GNRMC");
     if (!rmc) return false;
 
-    // 找到行尾
     const char *line_end = strchr(rmc, '\n');
     if (!line_end) line_end = strchr(rmc, '\r');
     if (!line_end) line_end = rmc + strlen(rmc);
 
-    // 临时截断
-    char save_char = *line_end;
-    *((char*)line_end) = '\0';
-
-    // 手动解析字段
     const char *p = rmc;
     int comma_count = 0;
     char time_str[16] = {0};
@@ -348,39 +355,39 @@ static bool parse_RMC(const char *buf, GPS_Data_TypeDef *data)
             p++;
             const char *field_start = p;
             int field_len = 0;
-            while (*p && *p != ',' && *p != '*') {
+            while (*p && p < line_end && *p != ',' && *p != '*') {
                 p++;
                 field_len++;
             }
             switch (comma_count) {
-                case 1: // UTC 时间 hhmmss.ss
+                case 1:
                     if (field_len >= 6 && field_len < 16) {
                         memcpy(time_str, field_start, field_len);
                         time_str[field_len] = '\0';
                     }
                     break;
-                case 2: // 状态 A=有效, V=无效
+                case 2:
                     if (field_len > 0) status = *field_start;
                     break;
-                case 3: // 纬度 ddmm.mmmm
+                case 3:
                     if (field_len > 0 && field_len < 16) {
                         memcpy(lat_str, field_start, field_len);
                         lat_str[field_len] = '\0';
                     }
                     break;
-                case 4: // N/S
+                case 4:
                     if (field_len > 0) lat_dir = *field_start;
                     break;
-                case 5: // 经度 dddmm.mmmm
+                case 5:
                     if (field_len > 0 && field_len < 16) {
                         memcpy(lon_str, field_start, field_len);
                         lon_str[field_len] = '\0';
                     }
                     break;
-                case 6: // E/W
+                case 6:
                     if (field_len > 0) lon_dir = *field_start;
                     break;
-                case 9: // 日期 ddmmyy
+                case 9:
                     if (field_len >= 6 && field_len < 16) {
                         memcpy(date_str, field_start, field_len);
                         date_str[field_len] = '\0';
@@ -392,15 +399,12 @@ static bool parse_RMC(const char *buf, GPS_Data_TypeDef *data)
         }
     }
 
-    // 恢复
-    *((char*)line_end) = save_char;
-
-    // 验证
-    if (time_str[0] == 0 || date_str[0] == 0 ||
-        lat_str[0] == 0 || lon_str[0] == 0 ||
-        (lat_dir != 'N' && lat_dir != 'S') ||
-        (lon_dir != 'E' && lon_dir != 'W')) {
-        return false;
+    // 验证（Fix 有效时才检查经纬度，否则只要求时间+日期）
+    if (time_str[0] == 0 || date_str[0] == 0) return false;
+    if (status == 'A') {
+        if (lat_str[0] == 0 || lon_str[0] == 0 ||
+            (lat_dir != 'N' && lat_dir != 'S') ||
+            (lon_dir != 'E' && lon_dir != 'W')) return false;
     }
 
     // 解析 UTC 时间
@@ -448,18 +452,12 @@ static bool parse_RMC(const char *buf, GPS_Data_TypeDef *data)
     data->second = utc_sec;
     data->valid  = (status == 'A');
 
-    // 转换经纬度
-    double lat_val = strtod(lat_str, NULL);
-    int lat_deg = (int)(lat_val / 100);
-    double lat_min = lat_val - lat_deg * 100;
-    data->latitude = lat_deg + lat_min / 60.0;
-    data->lat_dir = lat_dir;
+    // 转换经纬度（NMEA → 微度）
+    data->latitude  = nmea_to_udeg(lat_str);
+    data->lat_dir   = lat_dir;
 
-    double lon_val = strtod(lon_str, NULL);
-    int lon_deg = (int)(lon_val / 100);
-    double lon_min = lon_val - lon_deg * 100;
-    data->longitude = lon_deg + lon_min / 60.0;
-    data->lon_dir = lon_dir;
+    data->longitude = nmea_to_udeg(lon_str);
+    data->lon_dir   = lon_dir;
 
     // 计算 UTC 时间戳（简化版）
     int days = 0;
@@ -475,7 +473,7 @@ static bool parse_RMC(const char *buf, GPS_Data_TypeDef *data)
     days += day - 1;
     data->timestamp = (uint32_t)days * 86400 + utc_hour * 3600 + utc_min * 60 + utc_sec;
 
-    return data->valid;
+    return true;  // 始终返回 true（data->valid 保留 Fix 状态供上层判断）
 }
 
 /*=============================================================================
@@ -499,26 +497,34 @@ void GPS_ParseNMEA(void)
         return;
     }
 
-    // 复制行缓冲区到临时缓冲区
     char line[GPS_LINE_BUF_SIZE];
     __disable_irq();
-    memcpy(line, (const char*)gps_line_buf, GPS_LINE_BUF_SIZE);
+    for (uint16_t i = 0; i < GPS_LINE_BUF_SIZE; i++) {
+        line[i] = (char)gps_line_buf[i];
+    }
     gps_line_ready = false;
     __enable_irq();
 
-    // 尝试解析 GGA
+    // 先解析 RMC（含时间+日期），再解析 GGA（含定位质量）
     GPS_Data_TypeDef temp_data = {0};
-    if (parse_GGA(line, &temp_data)) {
-        // 如果 GGA 解析成功，更新缓冲器
+    if (parse_RMC(line, &temp_data)) {
         __disable_irq();
         gps_data_buffer = temp_data;
         gps_data_valid = true;
         __enable_irq();
+
+        // GGA 补充定位质量（DGPS 等更细粒度），不需要就跳过
+        GPS_Data_TypeDef gga_data = {0};
+        if (parse_GGA(line, &gga_data)) {
+            __disable_irq();
+            gps_data_buffer.valid = gga_data.valid;
+            __enable_irq();
+        }
         return;
     }
 
-    // 尝试解析 RMC
-    if (parse_RMC(line, &temp_data)) {
+    // 单 GGA（无 RMC 时降级）
+    if (parse_GGA(line, &temp_data)) {
         __disable_irq();
         gps_data_buffer = temp_data;
         gps_data_valid = true;
@@ -560,6 +566,37 @@ void GPS_ClearData(void)
 }
 
 /*=============================================================================
+ * 诊断接口
+ *===========================================================================*/
+bool GPS_Diag_LineReady(void) { return gps_line_ready; }
+uint16_t GPS_Diag_LineIdx(void) { return gps_line_idx; }
+uint32_t GPS_Diag_IsrCount(void) { return gps_isr_count; }
+uint32_t GPS_Diag_LineReadyCount(void) { return gps_line_ready_count; }
+void GPS_Diag_DumpRaw(uint8_t (*send)(const uint8_t *, uint16_t))
+{
+    uint8_t buf[128];
+    uint16_t n = 0;
+    uint8_t b;
+    while (n < sizeof(buf) && __ring_pop(&gps_rx_ring, &b, GPS_RX_BUF_SIZE)) {
+        buf[n++] = b;
+    }
+    if (n > 0) send(buf, n);
+}
+
+uint16_t GPS_Diag_PeekLine(char *buf, uint16_t max_len)
+{
+    uint16_t n = 0;
+    __disable_irq();
+    while (n < max_len - 1 && n < GPS_LINE_BUF_SIZE && gps_line_buf[n]) {
+        buf[n] = (char)gps_line_buf[n];
+        n++;
+    }
+    buf[n] = '\0';
+    __enable_irq();
+    return n;
+}
+
+/*=============================================================================
  * @brief   USART1 中断服务函数
  * @note    RXNE：接收数据写入环形缓冲区
  *          TXE ：从环形缓冲区取出数据发送，发完则关 TXE 中断
@@ -574,23 +611,27 @@ void USART1_IRQHandler(void)
         byte = (uint8_t)USART_ReceiveData(USART1);
         __ring_push(&gps_rx_ring, byte, GPS_RX_BUF_SIZE);
 
-        /* 行读取：检测帧头 '$' 和帧尾 '\n' */
-        if (byte == '$') {
-            // 新帧开始，重置行缓冲区
-            gps_line_idx = 0;
-        }
-        
-        if (gps_line_idx < GPS_LINE_BUF_SIZE - 1) {
-            gps_line_buf[gps_line_idx++] = byte;
-            if (byte == '\n') {
-                gps_line_buf[gps_line_idx] = '\0';
-                gps_line_ready = true;
+        gps_isr_count++;
+
+        if (!gps_line_ready) {
+            if (byte == '\n' || byte == '\r') gps_line_ready_count++;
+            if (byte == '$') {
                 gps_line_idx = 0;
             }
-        } else {
-            /* 行缓冲区溢出，重置 */
-            gps_line_idx = 0;
+            if (byte == '\n' || byte == '\r') {
+                if (gps_line_idx > 0) {
+                    gps_line_buf[gps_line_idx] = '\0';
+                    gps_line_ready = true;
+                }
+                gps_line_idx = 0;
+            } else if (gps_line_idx < GPS_LINE_BUF_SIZE - 1) {
+                gps_line_buf[gps_line_idx++] = byte;
+            } else {
+                gps_line_idx = 0;
+            }
         }
+        
+
         
         gps_last_rx_time = tick_ms;  // 记录收到数据的时间
     }

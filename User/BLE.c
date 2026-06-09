@@ -68,7 +68,7 @@ void BLE_Init(void)
     GPIO_Init(GPIOD, &GPIO_InitStructure);
 
     /* USART2 参数：115200，8 数据位，1 停止位，无校验，无流控 */
-    USART_InitStructure.USART_BaudRate            = 9600;
+    USART_InitStructure.USART_BaudRate = 921600;
     USART_InitStructure.USART_WordLength          = USART_WordLength_8b;
     USART_InitStructure.USART_StopBits            = USART_StopBits_1;
     USART_InitStructure.USART_Parity              = USART_Parity_No;

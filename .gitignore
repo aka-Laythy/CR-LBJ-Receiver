@@ -1,10 +1,55 @@
-﻿obj/
+﻿# ===== 编译输出 =====
+obj/
 *.o
+*.d
 *.elf
 *.hex
-*.map
+*.bin
 *.lst
-*.d
-.mrs/
-*.launch
-*.wvproj
+*.map
+*.su
+*.lib
+
+# ===== MounRiver Studio / IDE =====
+.metadata/
+.settings/
+.cproject
+.project
+.template
+.launches/
+Debug/
+Release/
+*.mrs-workspace
+.wvproj
+.launch
+*.code-workspace
+
+# ===== Kilo AI =====
+.kilo/node_modules/
+.kilo/agent-manager.json.bak*
+
+# ===== VS Code =====
+.vscode/
+
+# ===== Python =====
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# ===== 系统 / OS =====
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# ===== 临时文件 =====
+*.bak
+*.tmp
+*.log
+*.val
+cache.db*

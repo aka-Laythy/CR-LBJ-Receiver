@@ -4,7 +4,7 @@
 		{
 			"type": "mrs-debugger",
 			"request": "launch",
-			"name": "0000----CH32V005F6P6-power-board-ble-pmos",
+			"name": "CR-LBJ-Receiver-CH32V005-proj",
 			"cwd": "c:\\Users\\Laythy\\Desktop\\CR-LBJ-Receiver-CH32V005-proj",
 			"openOCDCfg": {
 				"useLocalOpenOCD": true,
@@ -39,8 +39,8 @@
 					"additionalCommands": []
 				},
 				"loadedFiles": {
-					"executableFile": "c:\\Users\\Laythy\\Desktop\\CR-LBJ-Receiver-CH32V005-proj\\obj\\0000----CH32V005F6P6-power-board-ble-pmos.elf",
-					"symbolFile": "c:\\Users\\Laythy\\Desktop\\CR-LBJ-Receiver-CH32V005-proj\\obj\\0000----CH32V005F6P6-power-board-ble-pmos.elf",
+					"executableFile": "c:\\Users\\Laythy\\Desktop\\CR-LBJ-Receiver-CH32V005-proj\\obj\\CR-LBJ-Receiver-CH32V005-proj.elf",
+					"symbolFile": "c:\\Users\\Laythy\\Desktop\\CR-LBJ-Receiver-CH32V005-proj\\obj\\CR-LBJ-Receiver-CH32V005-proj.elf",
 					"executableFileOffset": 0,
 					"symbolFileOffset": 0
 				},
