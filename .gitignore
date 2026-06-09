@@ -13,15 +13,10 @@ obj/
 # ===== MounRiver Studio / IDE =====
 .metadata/
 .settings/
-.cproject
-.project
-.template
 .launches/
 Debug/
 Release/
 *.mrs-workspace
-.wvproj
-.launch
 *.code-workspace
 
 # ===== Kilo AI =====
@@ -38,6 +33,13 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+
+# ===== 非代码文件 =====
+0-AI_Files/
+
+# ===== IDE / 编辑器 =====
+.vscode/
+.mrs/
 
 # ===== 系统 / OS =====
 .DS_Store
