@@ -139,12 +139,20 @@ void SPI_Bus_Release(void)
 
 uint8_t SPI_Bus_TransferByte(uint8_t tx)
 {
+    uint32_t to;
+    to = 5000;
     while (SPI_I2S_GetFlagStatus(SPI_PERIPH, SPI_I2S_FLAG_TXE) == RESET) {
+        if (--to == 0) goto spi_timeout;
     }
     SPI_I2S_SendData(SPI_PERIPH, tx);
+    to = 5000;
     while (SPI_I2S_GetFlagStatus(SPI_PERIPH, SPI_I2S_FLAG_RXNE) == RESET) {
+        if (--to == 0) goto spi_timeout;
     }
     return (uint8_t)SPI_I2S_ReceiveData(SPI_PERIPH);
+
+spi_timeout:
+    return 0xFF;
 }
 
 void SPI_Bus_Transfer(uint8_t *tx, uint8_t *rx, uint16_t len)

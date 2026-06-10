@@ -1,9 +1,9 @@
 #include "debug.h"
 #include "Tick.h"
 #include "OLED.h"
+#include "SPI_Flash/spi_flash.h"
+#include "str_util.h"
 #include <string.h>
-#include <math.h>
-#include <stdio.h>
 #include <stdarg.h>
 
 #define addrSuffix 0x00  // 测试用，调节oled从机i2c地址，基地址是0x78
@@ -360,7 +360,7 @@ uint8_t OLED_pnpoly(uint8_t nvert, int16_t *vertx, int16_t *verty, int16_t testx
 uint8_t OLED_IsInAngle(int16_t X, int16_t Y, int16_t StartAngle, int16_t EndAngle)
 {
 	int16_t PointAngle;
-	PointAngle = atan2(Y, X) / 3.14 * 180;	//计算指定点的弧度，并转换为角度表示
+	PointAngle = mini_atan2(Y, X);	//整数atan2查表, 替代浮点atan2
 	if (StartAngle < EndAngle)	//起始角度小于终止角度的情况
 	{
 		/*如果指定角度在起始终止角度之间，则判定指定点在指定角度*/
@@ -687,6 +687,38 @@ void OLED_ShowString(int16_t X, int16_t Y, char *String, uint8_t FontSize)
 }
 
 /**
+  * 函    数：OLED显示GB2312编码字符串（ASCII+中文混合，中文从SPI Flash字库读取）
+  * 参    数：X 指定字符串左上角的横坐标，范围：-32768~32767，屏幕区域：0~127
+  * 参    数：Y 指定字符串左上角的纵坐标，范围：-32768~32767，屏幕区域：0~63
+  * 参    数：gb_str 指定要显示的GB2312编码字符串
+  *           字节<0x80为ASCII，字节>=0xA1为GB2312双字节中文首字节
+  * 参    数：FontSize 指定字体大小，仅支持 OLED_8X16
+  * 返 回 值：无
+  * 说    明：ASCII使用MCU Flash字模，中文从SPI Flash HZK16字库读取并转置
+  */
+void OLED_ShowGBString(int16_t X, int16_t Y, const uint8_t *gb_str, uint8_t FontSize)
+{
+	uint16_t XOffset = 0;
+	uint8_t i = 0;
+	uint8_t fb[32];
+
+	while (gb_str[i] != '\0') {
+		if (gb_str[i] < 0x80) {
+			OLED_ShowChar(X + XOffset, Y, (char)gb_str[i], FontSize);
+			XOffset += FontSize;
+			i++;
+		} else {
+			uint16_t code = ((uint16_t)gb_str[i] << 8) | gb_str[i + 1];
+			SPI_Flash_ReadFontGB2312(code, fb);
+			HZK16_To_OLED(fb);
+			OLED_ShowImage(X + XOffset, Y, 16, 16, fb);
+			XOffset += 16;
+			i += 2;
+		}
+	}
+}
+
+/**
   * 函    数：OLED显示数字（十进制，正整数）
   * 参    数：X 指定数字左上角的横坐标，范围：-32768~32767，屏幕区域：0~127
   * 参    数：Y 指定数字左上角的纵坐标，范围：-32768~32767，屏幕区域：0~63
@@ -819,6 +851,7 @@ void OLED_ShowBinNum(int16_t X, int16_t Y, uint32_t Number, uint8_t Length, uint
   * 返 回 值：无
   * 说    明：调用此函数后，要想真正地呈现在屏幕上，还需调用更新函数
   */
+#if 0 /* 未使用, 依赖 math.h 的 round() — 注释以消除软浮点依赖 */
 void OLED_ShowFloatNum(int16_t X, int16_t Y, double Number, uint8_t IntLength, uint8_t FraLength, uint8_t FontSize)
 {
 	uint32_t PowNum, IntNum, FraNum;
@@ -849,6 +882,7 @@ void OLED_ShowFloatNum(int16_t X, int16_t Y, double Number, uint8_t IntLength, u
 	/*显示小数部分*/
 	OLED_ShowNum(X + (IntLength + 2) * FontSize, Y, FraNum, FraLength, FontSize);
 }
+#endif /* OLED_ShowFloatNum */
 
 /**
   * 函    数：OLED显示图像
@@ -923,7 +957,7 @@ void OLED_Printf(int16_t X, int16_t Y, uint8_t FontSize, char *format, ...)
 	char String[256];						//定义字符数组
 	va_list arg;							//定义可变参数列表数据类型的变量arg
 	va_start(arg, format);					//从format开始，接收参数列表到arg变量
-	vsprintf(String, format, arg);			//使用vsprintf打印格式化字符串和参数列表到字符数组中
+	mini_vsprintf(String, format, arg);	//轻量替代vsprintf
 	va_end(arg);							//结束变量arg
 	OLED_ShowString(X, Y, String, FontSize);//OLED显示字符数组（字符串）
 }
@@ -1273,6 +1307,7 @@ void OLED_DrawCircle(int16_t X, int16_t Y, uint8_t Radius, uint8_t IsFilled)
   * 返 回 值：无
   * 说    明：调用此函数后，要想真正地呈现在屏幕上，还需调用更新函数
   */
+#if 0 /* 未使用, 依赖软浮点 — 注释以消除 float 依赖 */
 void OLED_DrawEllipse(int16_t X, int16_t Y, uint8_t A, uint8_t B, uint8_t IsFilled)
 {
 	int16_t x, y, j;
@@ -1370,7 +1405,9 @@ void OLED_DrawEllipse(int16_t X, int16_t Y, uint8_t A, uint8_t B, uint8_t IsFill
 		OLED_DrawPoint(X + x, Y - y);
 	}
 }
+#endif /* OLED_DrawEllipse */
 
+#if 0 /* 未使用 — 节省代码空间 */
 /**
   * 函    数：OLED画圆弧
   * 参    数：X 指定圆弧的圆心横坐标，范围：-32768~32767，屏幕区域：0~127
@@ -1455,5 +1492,6 @@ void OLED_DrawArc(int16_t X, int16_t Y, uint8_t Radius, int16_t StartAngle, int1
 		}
 	}
 }
+#endif /* OLED_DrawArc */
 
 /*********************功能函数*/

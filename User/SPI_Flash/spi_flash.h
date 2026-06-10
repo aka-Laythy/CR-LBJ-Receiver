@@ -32,18 +32,20 @@
 #define CMD_RELEASE_PD_ID          0xAB
 #define CMD_READ_JEDEC_ID          0x9F
 
-/* 存储分区（基地址 = 0） */
+/* 存储分区 */
 #define FLASH_PART_CONFIG_ADDR     0x000000
-#define FLASH_PART_CONFIG_SIZE     0x004000  /* 16 KB */
+#define FLASH_PART_CONFIG_SIZE     0x004000     /* 16 KB */
 
 #define FLASH_PART_RESERVED_ADDR   0x004000
-#define FLASH_PART_RESERVED_SIZE   0x100000  /* 1 MB */
+#define FLASH_PART_RESERVED_SIZE   0x100000     /* 1 MB */
 
 #define FLASH_PART_FONT_ADDR       0x104000
-#define FLASH_PART_FONT_SIZE       0x040000  /* 256 KB */
+#define FLASH_PART_FONT_SIZE       0x100000     /* 1 MB */
 
-#define FLASH_PART_LBJ_ADDR        0x144000
-#define FLASH_PART_LBJ_SIZE        (SPI_FLASH_TOTAL_SIZE - FLASH_PART_LBJ_ADDR)  /* ~6.6 MB */
+#define FLASH_PART_LBJ_ADDR        0x204000
+#define FLASH_PART_LBJ_SIZE        (SPI_FLASH_TOTAL_SIZE - FLASH_PART_LBJ_ADDR)  /* ~5.9 MB */
+
+#define FLASH_SECTOR_ALIGN(addr)   ((addr) & ~(SPI_FLASH_SECTOR_SIZE - 1))
 
 bool     SPI_Flash_Init(void);
 bool     SPI_Flash_ReadID(uint8_t *mf, uint8_t *type, uint8_t *cap);
@@ -55,5 +57,13 @@ bool     SPI_Flash_Block64Erase(uint32_t addr);
 bool     SPI_Flash_ChipErase(void);
 void     SPI_Flash_WriteEnable(void);
 void     SPI_Flash_WaitBusy(void);
+bool     SPI_Flash_Write(uint32_t addr, const uint8_t *data, uint32_t len);
+bool     SPI_Flash_EraseRange(uint32_t addr, uint32_t size);
+
+/* 字库读取辅助 */
+void     SPI_Flash_ReadFontGB2312(uint16_t code, uint8_t *buf);
+
+/* 字模格式转换: HZK16 row-major → OLED column-major (就地转换32字节) */
+void     HZK16_To_OLED(uint8_t *buf);
 
 #endif

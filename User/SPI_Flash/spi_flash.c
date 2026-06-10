@@ -148,6 +148,80 @@ bool SPI_Flash_ChipErase(void)
 }
 
 /*=============================================================================
+ * 范围擦除（按 4KB 扇区）
+ *===========================================================================*/
+bool SPI_Flash_EraseRange(uint32_t addr, uint32_t size)
+{
+    uint32_t end = addr + size;
+    addr = FLASH_SECTOR_ALIGN(addr);
+    while (addr < end) {
+        if (addr % SPI_FLASH_BLOCK64_SIZE == 0 && end - addr >= SPI_FLASH_BLOCK64_SIZE) {
+            if (!SPI_Flash_Block64Erase(addr)) return false;
+            addr += SPI_FLASH_BLOCK64_SIZE;
+        } else {
+            if (!SPI_Flash_SectorErase(addr)) return false;
+            addr += SPI_FLASH_SECTOR_SIZE;
+        }
+    }
+    return true;
+}
+
+/*=============================================================================
+ * 读取 GB2312 汉字字模（32 字节 16×16 点阵）
+ * code: GB2312 内码（高字节=区码+0xA0，低字节=位码+0xA0）
+ * buf: 输出 32 字节点阵数据
+ *===========================================================================*/
+void SPI_Flash_ReadFontGB2312(uint16_t code, uint8_t *buf)
+{
+    /* ASCII 字符从字库开头顺序存，每字 16 字节 */
+    if (code < 0x80) {
+        uint32_t addr = FLASH_PART_FONT_ADDR + (uint32_t)code * 16;
+        SPI_Flash_ReadData(addr, buf, 16);
+        /* 下半部分填 0（16×16 中 ASCII 只占 8×16，低 8 行空白） */
+        memset(buf + 16, 0, 16);
+        return;
+    }
+
+    /* GB2312 汉字 */
+    uint8_t qu = (uint8_t)(code >> 8) - 0xA1;
+    uint8_t wei = (uint8_t)(code & 0xFF) - 0xA1;
+    if (qu > 86 || wei > 93) {
+        memset(buf, 0, 32);
+        return;
+    }
+    uint32_t idx = (uint32_t)qu * 94 + wei;
+    uint32_t addr = FLASH_PART_FONT_ADDR + idx * 32;
+    SPI_Flash_ReadData(addr, buf, 32);
+}
+
+/*=============================================================================
+ * HZK16 row-major -> OLED column-major 转置
+ * 就地转换32字节点阵数据
+ *
+ * HZK16: byte[r*2].bit7=col0 ... bit0=col7, byte[r*2+1].bit7=col8 ... bit0=col15
+ * OLED:  byte[col + 0].bit0=row0 ... bit7=row7, byte[col + 16].bit0=row8 ... bit7=row15
+ *===========================================================================*/
+void HZK16_To_OLED(uint8_t *buf)
+{
+    uint8_t tmp[32];
+    uint8_t col, row, page, bit_in_hzk;
+    uint8_t hzk_idx;
+
+    memset(tmp, 0, 32);
+    for (col = 0; col < 16; col++) {
+        for (row = 0; row < 16; row++) {
+            hzk_idx = row * 2 + (col < 8 ? 0 : 1);
+            bit_in_hzk = 7 - (col & 0x07);
+            if (buf[hzk_idx] & (1 << bit_in_hzk)) {
+                page = row >> 3;
+                tmp[col + page * 16] |= (uint8_t)(1 << (row & 0x07));
+            }
+        }
+    }
+    memcpy(buf, tmp, 32);
+}
+
+/*=============================================================================
  * 初始化：读 ID 确认芯片
  *===========================================================================*/
 bool SPI_Flash_Init(void)

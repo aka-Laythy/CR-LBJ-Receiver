@@ -11,7 +11,7 @@ extern "C" {
 /* ================================================================
  *  POCSAG 解码器配置
  * ================================================================ */
-#define POCSAG_RAW_BUF_SIZE     512     /* 原始数据环形缓冲区大小 */
+#define POCSAG_RAW_BUF_SIZE     256     /* 原始数据环形缓冲区大小 */
 #define POCSAG_MAX_MSG_LEN      256     /* 单条消息最大 numeric 字符数 */
 #define POCSAG_MSG_TIMEOUT_MS   3000    /* 消息结束超时 (ms) */
 

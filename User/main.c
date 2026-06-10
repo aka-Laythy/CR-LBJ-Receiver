@@ -9,6 +9,7 @@
 #include "SPI_Bus/spi_bus.h"
 #include "SX1276/sx1276.h"
 #include "SPI_Flash/spi_flash.h"
+#include "FlashBurn/flash_burn.h"
 #include "bit_capture.h"
 #include "POCSAG/pocsag.h"
 #include "LBJ/lbj.h"
@@ -163,9 +164,15 @@ int8_t essentials(void)
  * ================================================================ */
 int main(void)
 {
-    while(!essentials());
+    /* 冷启动等待内部 LDO / HSI 稳定 (SysTick 尚未就绪, 用空转) */
+    for (volatile uint32_t _i = 0; _i < 1000000; _i++) {
+        __NOP();
+    }
 
-    /* ---- 初始化 BLE/USART2 PD2 TX 9600 串口输出 ---- */
+    while(!essentials());
+    Tick_DelayMs(300);      /* 外设供电稳定 */
+
+    /* ---- 初始化 BLE/USART2 PD2 TX 921600 串口输出 ---- */
     BLE_Init();
     DBG("[BOOT] BLE init OK\r\n");
 
@@ -181,6 +188,7 @@ int main(void)
         DBG("[BOOT] Flash init OK\r\n");
     else
         DBG("[BOOT] Flash not found\r\n");
+    FlashBurn_Init();
 
     DBG("[BOOT] KEY init...\r\n");
     Key_Init();
@@ -215,6 +223,7 @@ int main(void)
     schedule_init(10);
     schedule_register(20, schedule_task1);
     schedule_register(10, Menu_Task);
+    schedule_register(10, FlashBurn_Task);
     DBG("[BOOT] Boot complete\r\n");
 
     while (1) {

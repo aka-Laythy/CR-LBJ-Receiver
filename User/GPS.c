@@ -20,7 +20,7 @@ static volatile uint8_t   gps_tx_busy = 0;
 /*=============================================================================
  * 全局行缓冲区：用于 NMEA 行读取
  *===========================================================================*/
-#define GPS_LINE_BUF_SIZE  512
+#define GPS_LINE_BUF_SIZE  256
 static volatile char     gps_line_buf[GPS_LINE_BUF_SIZE];
 static volatile uint16_t gps_line_idx = 0;
 static volatile bool     gps_line_ready = false;

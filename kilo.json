@@ -1,0 +1,24 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "model": "kilo/stepfun/step-3.7-flash:free",
+  "small_model": "kilo/stepfun/step-3.7-flash:free",
+  "default_agent": "code",
+  "instructions": ["AGENTS.md", "CLAUDE.md"],
+  "mcp": {
+    "filesystem": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\Laythy\\Desktop\\CR-LBJ-Receiver-CH32V005-proj"],
+      "enabled": true
+    }
+  },
+  "permission": {
+    "bash": "allow",
+    "edit": {
+      "src/**": "allow",
+      "User/**": "allow",
+      "*": "ask"
+    },
+    "read": "allow",
+    "external_directory": "ask"
+  }
+}

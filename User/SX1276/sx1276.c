@@ -40,7 +40,8 @@ static const uint32_t LBJ_FRF[] = {
     821825000UL,
 };
 
-/* RXBW: 20.8 kHz @ Fxosc = 32 MHz (Mantissa=24, Exponent=4 → 0x14) */
+/* RXBW: 20.8 kHz @ Fxosc = 32 MHz (高4位=0x1=20.8kHz, 低4位抖动)
+ *   SX1276 BW 由 RegValue[7:4] 决定, 见数据手册Rev7表14 */
 #define RXBW_20K8 0x14
 
 /* ================================================================
@@ -129,19 +130,21 @@ int8_t SX1276_Init(void)
     SX1276_WriteReg(REG_FDEVMSB, 0x00);
     SX1276_WriteReg(REG_FDEVLSB, 0x4A);
 
-    /* RX 带宽 / AFC 带宽: 20.8 kHz */
+    /* RX 带宽: 20.8 kHz — 匹配 1200bps FSK (Carson≈11.4kHz, 余量~2x) */
     SX1276_WriteReg(REG_RXBW,  RXBW_20K8);
-    SX1276_WriteReg(REG_AFCBW, RXBW_20K8);
+
+    /* AFC 带宽: 500 kHz (高4位=8) — 只负责 PLL 捕获范围, 不决定信号选通
+       SX1276 BW 由 RegValue[7:4] 查表 @32MHz:
+       高4位=7 → 250kHz, 捕获±125kHz
+       高4位=8 → 500kHz, 捕获±250kHz — 覆盖实测 ±130kHz
+       RXBW(20.8kHz) 才是通道滤波器, AFC 捕获后信号自动落入其中 */
+    SX1276_WriteReg(REG_AFCBW, 0x80);
 
     /* LNA: AGC 自动管理增益, 开启高频助推 */
     SX1276_WriteReg(REG_LNA, 0x21);
 
     /* RX 配置: AGC Auto + AFC Auto */
     SX1276_WriteReg(REG_RXCONFIG, 0x09);
-
-    /* AFC 带宽: 250 kHz (Mant=16, Exp=2) — 可捕获 ±125kHz 频偏,
-       覆盖实测见到的 +113kHz 偏移 */
-    SX1276_WriteReg(REG_AFCBW, 0x02);
 
     /* 前导码检测: 2 bytes, tolerance 10, 启用检测器 */
     SX1276_WriteReg(REG_PREAMBLEDET, 0xAA);

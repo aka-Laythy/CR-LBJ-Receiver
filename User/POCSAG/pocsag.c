@@ -10,8 +10,9 @@
 #define POCSAG_BYTES_PER_CW     4
 #define POCSAG_BATCH_DATA_BYTES (POCSAG_CODEWORDS_BATCH * POCSAG_BYTES_PER_CW)
 
-/* BCH(31,21) 生成多项式: g(x) = x^10 + x^9 + x^8 + x^6 + x^5 + x^3 + 1 */
-#define BCH_POLY                0x3D1U   /* 11-bit, 对应上述多项式 */
+/* BCH(31,21) 生成多项式: g(x) = x^10 + x^9 + x^8 + x^6 + x^5 + x^3 + 1
+ * 系数 (bit10..bit0): 111 0110 1001 = 0x769, 11-bit */
+#define BCH_POLY                0x769U   /* 之前 0x3D1 是错的, 导致全部码字被拒 */
 
 /* ================================================================
  *  TB/T 3504-2018 BCD 字符映射
@@ -24,12 +25,12 @@ static char bcd_to_char(uint8_t nibble)
         return (char)('0' + nibble);
     }
     switch (nibble) {
-        case 0xA: return ' ';   /* spare → 空格 */
+        case 0xA: return '*';   /* spare → '*' (匹配 SDR 接收器, 区别于空格 0xC) */
         case 0xB: return 'U';   /* urgent */
         case 0xC: return ' ';   /* TB/T: C=空格 */
         case 0xD: return '-';   /* TB/T: D=负号 */
-        case 0xE: return '(';   /* TB/T: E=( */
-        default:  return ')';   /* TB/T: F=) */
+        case 0xE: return ')';   /* TB/T: E=) (匹配 SDR) */
+        default:  return '(';   /* TB/T: F=( */
     }
 }
 
@@ -183,9 +184,14 @@ static void process_codeword(uint32_t cw, uint8_t slot)
 {
     uint32_t fixed;
     bool ok = pocsag_check_codeword(cw, &fixed);
+#ifdef POCSAG_BCH_STRICT
+    if (!ok) return;  /* 严格模式: 不可纠正则丢弃 */
+#else
     if (!ok) {
-        return;  /* 不可纠正, 丢弃 */
+        fixed = cw;   /* 宽松模式: 校验失败也继续, 用原始码字提取数据 */
+        msg_append_numeric("~", 1);  /* 标记本字符可能含误码 */
     }
+#endif
 
     /* IDLE 码字 -> 结束当前消息 */
     if (fixed == POCSAG_IDLE_CODEWORD) {
