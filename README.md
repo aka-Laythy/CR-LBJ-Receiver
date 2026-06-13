@@ -1,6 +1,6 @@
 # CR-LBJ-Receiver-CH32V005-proj
 
-国铁 LBJ（列车接近预警）接收器。基于 CH32V005F6P6 + SX1276，通过 DIO bit-stream 接收 FSK POCSAG 信号，解析后经蓝牙输出。
+国铁 LBJ（列车接近预警）接收器。基于 CH32V005F6P6 单片机和 SX1276 射频模组，通过 DIO bit-stream 接收 FSK POCSAG 信号，解析后经蓝牙输出。
 
 ## 硬件
 
