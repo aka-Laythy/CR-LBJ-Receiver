@@ -125,19 +125,18 @@ static void sessions_expire(void) {
     }
 }
 
-static void session_merge_output(Session_t *s) {
+static void session_merge_output(Session_t *s, int16_t rssi, const char *text, uint8_t len) {
     LBJ_Message_t *m = &g_latest_msg;
     memset(m, 0, sizeof(*m));
     m->ric = LBJ_RIC_APPROACH;
+    m->rssi_dbm = rssi;
 
-    /* 车次号 = prefix + train_id */
-    if (s->prefix[0]) {
-        uint8_t pl = (uint8_t)strlen(s->prefix);
-        memcpy(m->train_id, s->prefix, pl);
-        memcpy(m->train_id + pl, s->train_id, sizeof(m->train_id) - pl - 1);
-    } else {
-        strncpy(m->train_id, s->train_id, sizeof(m->train_id) - 1);
-    }
+    uint8_t clen = (len > 255) ? 255 : len;
+    memcpy(m->raw_text, text, clen);
+    m->raw_len = clen;
+
+    /* 车次号: 只取基本帧的数字车次号, 不拼接扩展帧的机车前缀 */
+    strncpy(m->train_id, s->train_id, sizeof(m->train_id) - 1);
     m->has_train_id = true;
     m->train_odd_even = (s->direction == 3);
 
@@ -315,7 +314,7 @@ void LBJ_ParsePOCSAG(uint32_t ric, uint8_t function,
             parse_extended(text, len, s);
         }
 
-        session_merge_output(s);
+        session_merge_output(s, rssi, text, len);
     }
 
     /* === 独立扩展帧解析 === */
@@ -323,7 +322,7 @@ void LBJ_ParsePOCSAG(uint32_t ric, uint8_t function,
         Session_t *s = session_find(g_last_train);
         if (s && (tick_ms - s->last_ms) < 2000) {
             parse_extended(text, len, s);
-            session_merge_output(s);
+            session_merge_output(s, rssi, text, len);
         }
     }
 }

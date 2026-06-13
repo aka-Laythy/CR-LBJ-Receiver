@@ -47,6 +47,15 @@
 
 #define FLASH_SECTOR_ALIGN(addr)   ((addr) & ~(SPI_FLASH_SECTOR_SIZE - 1))
 
+/* 配置分区数据结构 (FLASH_PART_CONFIG_ADDR = 0x000000) */
+#define CONFIG_MAGIC            0x53584257  /* "SXBW" */
+#define CONFIG_OFFSET_MAGIC     0
+#define CONFIG_OFFSET_VERSION   4
+#define CONFIG_OFFSET_RXBW      5
+#define CONFIG_OFFSET_AFCBW     6
+#define CONFIG_OFFSET_CHECKSUM  7
+#define CONFIG_DATA_SIZE        8
+
 bool     SPI_Flash_Init(void);
 bool     SPI_Flash_ReadID(uint8_t *mf, uint8_t *type, uint8_t *cap);
 uint32_t SPI_Flash_ReadJedecID(void);

@@ -42,6 +42,10 @@ uint8_t  SX1276_ReadReg(uint8_t addr);
 /* 自检：回读关键寄存器，通过 BLE 输出结果 */
 void     SX1276_SelfTest(uint8_t (*send)(const uint8_t *data, uint16_t len));
 
+/* 从 W25Q64 加载/保存带宽配置 (RegRxBw / RegAfcBw) */
+void     SX1276_LoadBwConfig(void);
+void     SX1276_SaveBwConfig(void);
+
 #ifdef __cplusplus
 }
 #endif

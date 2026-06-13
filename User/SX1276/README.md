@@ -15,7 +15,7 @@ DIO:  DIO1(PA1) = DCLK / DIO2(PA2) = DATA
 依据 **TB/T 3504-2018 第 9.1 节**「接近预警信道数据传输协议」:
 - 编码: POCSAG, 调制: 2FSK, 速率: 1200 bit/s
 - 频点: 820.700 / 821.2375 / 821.825 MHz (三信道)
-- 频偏: ±4.5 kHz, RX 带宽: 20.8 kHz
+- 频偏: ±4.5 kHz, RX 带宽: 10.4 kHz SSB (等效 ~20.8 kHz)
 
 ## API 使用
 
@@ -38,16 +38,27 @@ SX1276_WriteReg/ReadReg → 调试用 SPI 寄存器读写
 
 | 参数 | 值 | 寄存器 |
 |------|-----|--------|
-| 频率 | 821.2375 MHz (CH1) | FrF = 0x690B01 |
+| 频率 | 821.2375 MHz (CH1) | FrF = 0xCD4F33 |
 | 比特率 | 1200 bps | Bitrate = 0x682B |
 | 频偏 | ±4.5 kHz | Fdev = 0x4A |
-| RX 带宽 | 20.8 kHz | RxBw = 0x14 |
+| RX 带宽 | 10.4 kHz SSB (等效 ~20.8 kHz) | RxBw = 0x15 |
+| AFC 带宽 | 250.0 kHz SSB (等效 ~500 kHz) | AfcBw = 0x01 |
 | 前导码检测 | 2 bytes, tol 10 | 0xAA |
-| DIO 映射 | DIO1=DCLK, DIO2=Data | 0xC0 |
+| DIO 映射 | DIO1=DCLK, DIO2=DATA | 0xC0 |
+
+## 关于 DIO 映射
+
+`RegDioMapping1 (0x40)` 的位域：`[7:6]DIO0 [5:4]DIO1 [3:2]DIO2 [1:0]DIO3`
+
+写入 `0xC0` (`1100_0000`)：
+- DIO0 = 11 → PLL_LOCK（悬空未用）
+- DIO1 = 00 → **DCLK**（数据时钟）
+- DIO2 = 00 → **DATA**（同步数据）
+- DIO3 = 00 → DATA（悬空未用）
+
+该值符合 SX1276 数据手册 Table 60。
 
 ## 已知问题
 
-1. **DIO 映射值**: 部分 SX1276 批次 DIO2=Data 需 `0xE0` 而非 `0xC0`。
-2. **DCLK 边沿**: 如果 bit 流看似反了，换下降沿触发。
-3. **RSSI**: 精度 ±3 dB，仅作参考。
-4. **RxBw**: 切勿低于 `0x14` (20.8 kHz)，否则 FSK ±4.5kHz 信号失真。
+1. **RSSI**: 精度 ±3 dB，仅作参考。
+2. **RxBw**: 建议最低 20.8 kHz (DSB)，否则 FSK ±4.5kHz 信号可能失真。

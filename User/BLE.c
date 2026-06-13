@@ -1,4 +1,5 @@
 #include "BLE.h"
+#include "Tick.h"
 
 /*=============================================================================
  * 环形缓冲区数据结构
@@ -41,58 +42,57 @@ static inline uint8_t __ring_pop(volatile RingBuf_t *r, uint8_t *byte, uint16_t 
 
 /*=============================================================================
  * @brief   BLE / USART2 初始化
- * @note    配置 PD2(TX)、PD3(RX) 为 USART2 复用功能，9600-8-N1
- *          并使能 RXNE 中断；PC5 作为模组控制脚输出低电平。
+ * @note    1. 配置 PD2(TX)、PD3(RX) 为 USART2 复用功能
+ *          2. 先以 115200 初始化，等待模组就绪
+ *          3. 发送 AT+UART=8\r\n 切换到 921600
+ *          4. 将 USART2 重设为 921600
  *===========================================================================*/
+static void _uart_send_byte(uint8_t byte)
+{
+    while (USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET);
+    USART_SendData(USART2, byte);
+}
+
 void BLE_Init(void)
 {
-    GPIO_InitTypeDef  GPIO_InitStructure = {0};
-    USART_InitTypeDef USART_InitStructure = {0};
-    NVIC_InitTypeDef  NVIC_InitStructure = {0};
+    struct { GPIO_InitTypeDef g; USART_InitTypeDef u; NVIC_InitTypeDef n; } i = {0};
+    i.u.USART_BaudRate = 115200;
+    i.u.USART_WordLength          = USART_WordLength_8b;
+    i.u.USART_StopBits            = USART_StopBits_1;
+    i.u.USART_Parity              = USART_Parity_No;
+    i.u.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    i.u.USART_Mode                = USART_Mode_Tx | USART_Mode_Rx;
 
-    /* 使能 USART2、GPIOD、AFIO 时钟 */
     RCC_PB2PeriphClockCmd(RCC_PB2Periph_GPIOD | RCC_PB2Periph_USART2 | RCC_PB2Periph_AFIO, ENABLE);
-
-    /* USART2 重映射：PD2=TX, PD3=RX */
     GPIO_PinRemapConfig(GPIO_PartialRemap3_USART2, ENABLE);
 
-    /* PD2 TX — 复用推挽输出 */
-    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_2;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_30MHz;
-    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AF_PP;
-    GPIO_Init(GPIOD, &GPIO_InitStructure);
+    i.g.GPIO_Pin = GPIO_Pin_2; i.g.GPIO_Speed = GPIO_Speed_30MHz; i.g.GPIO_Mode = GPIO_Mode_AF_PP;
+    GPIO_Init(GPIOD, &i.g);
 
-    /* PD3 RX — 浮空输入 */
-    GPIO_InitStructure.GPIO_Pin  = GPIO_Pin_3;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-    GPIO_Init(GPIOD, &GPIO_InitStructure);
+    i.g.GPIO_Pin = GPIO_Pin_3; i.g.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    GPIO_Init(GPIOD, &i.g);
 
-    /* USART2 参数：921600，8 数据位，1 停止位，无校验，无流控 */
-    USART_InitStructure.USART_BaudRate = 921600;
-    USART_InitStructure.USART_WordLength          = USART_WordLength_8b;
-    USART_InitStructure.USART_StopBits            = USART_StopBits_1;
-    USART_InitStructure.USART_Parity              = USART_Parity_No;
-    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-    USART_InitStructure.USART_Mode                = USART_Mode_Tx | USART_Mode_Rx;
-    USART_Init(USART2, &USART_InitStructure);
+    USART_Init(USART2, &i.u);
 
-    /* NVIC 配置：USART2 全局中断 */
-    NVIC_InitStructure.NVIC_IRQChannel                   = USART2_IRQn;
-    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
-    NVIC_InitStructure.NVIC_IRQChannelSubPriority        = 2;
-    NVIC_InitStructure.NVIC_IRQChannelCmd                = ENABLE;
-    NVIC_Init(&NVIC_InitStructure);
-
-    /* 使能接收中断并启动 USART2 */
+    i.n.NVIC_IRQChannel                   = USART2_IRQn;
+    i.n.NVIC_IRQChannelPreemptionPriority = 1;
+    i.n.NVIC_IRQChannelSubPriority        = 2;
+    i.n.NVIC_IRQChannelCmd                = ENABLE;
+    NVIC_Init(&i.n);
     USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
     USART_Cmd(USART2, ENABLE);
 
-    /* PC5 — BLE 模组控制脚（KEY / RST），默认输出低电平 */
-    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_5;
-    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_Out_PP;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_30MHz;
-    GPIO_Init(GPIOC, &GPIO_InitStructure);
-    GPIO_WriteBit(GPIOC, GPIO_Pin_5, Bit_RESET);
+    /* 等待模组上电就绪（+READY\r\n）后发送 AT+UART=8 切换至 921600 */
+    Tick_DelayMs(500);
+    _uart_send_byte('A'); _uart_send_byte('T');
+    _uart_send_byte('+'); _uart_send_byte('U'); _uart_send_byte('A'); _uart_send_byte('R'); _uart_send_byte('T');
+    _uart_send_byte('='); _uart_send_byte('8');
+    _uart_send_byte('\r'); _uart_send_byte('\n');
+    Tick_DelayMs(100);
+
+    i.u.USART_BaudRate = 921600;
+    USART_Init(USART2, &i.u);
+    USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
 }
 
 /*=============================================================================

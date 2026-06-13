@@ -15,9 +15,7 @@ extern "C" {
 #define POCSAG_MAX_MSG_LEN      256     /* 单条消息最大 numeric 字符数 */
 #define POCSAG_MSG_TIMEOUT_MS   3000    /* 消息结束超时 (ms) */
 
-/* 调试开关: 如果收到的字符全是乱码，尝试注释掉下面这行。
- * TB/T 3504 规定 char 内 bit 为 LSB-first，但实机可能需要反转。
- * 注释掉后 nibble 不再反转，恢复为标准 MSB-first。 */
+/* TB/T 3504 规定 char 内 bit 为 LSB-first，必须反转以恢复标准 BCD 顺序 */
 #define POCSAG_NIBBLE_REVERSE
 
 /* ================================================================

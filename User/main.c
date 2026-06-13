@@ -16,7 +16,7 @@
 #include "str_util.h"
 #include <string.h>
 
-/* 串口调试输出宏 — 使用 BLE/USART2（PD2 TX, 9600） */
+/* 串口调试输出宏 — 使用 BLE/USART2（PD2 TX, 921600） */
 #define DBG(msg)    BLE_SendString((const uint8_t *)(msg))
 #define DBGx(msg)   do { DBG(msg); Tick_DelayMs(10); } while(0)
 
@@ -78,10 +78,43 @@ static void on_lbj_message(const LBJ_Message_t *msg)
     }
     if (msg->has_km) {
         memcpy(out + n, "  KM=", 5); n += 5;
-        if (msg->km_negative) { out[n++] = '-'; }
         uint8_t klen = 0;
         while (msg->km_post[klen]) klen++;
-        memcpy(out + n, msg->km_post, klen); n += klen;
+        if (klen >= 5) {
+            memcpy(out + n, msg->km_post, 4); n += 4;
+            out[n++] = '.';
+            out[n++] = msg->km_post[4];
+        } else if (klen >= 2) {
+            memcpy(out + n, msg->km_post, klen - 1); n += klen - 1;
+            out[n++] = '.';
+            out[n++] = msg->km_post[klen - 1];
+        } else if (klen == 1) {
+            out[n++] = '0';
+            out[n++] = '.';
+            out[n++] = msg->km_post[0];
+        } else {
+            memcpy(out + n, "---.-", 5); n += 5;
+        }
+        memcpy(out + n, "\r\n", 2); n += 2;
+    }
+
+    if (msg->is_extended && msg->loco_model[0]) {
+        memcpy(out + n, "  Loco=", 7); n += 7;
+        uint8_t ml = 0;
+        while (msg->loco_model[ml]) ml++;
+        memcpy(out + n, msg->loco_model, ml); n += ml;
+        if (msg->loco_number[0]) {
+            out[n++] = '-';
+            uint8_t nl = 0;
+            while (msg->loco_number[nl]) nl++;
+            memcpy(out + n, msg->loco_number, nl); n += nl;
+        }
+        memcpy(out + n, "\r\n", 2); n += 2;
+    }
+
+    if (msg->is_extended && msg->route_gbk_len > 0) {
+        memcpy(out + n, "  Route=", 8); n += 8;
+        memcpy(out + n, msg->route_gbk, msg->route_gbk_len); n += msg->route_gbk_len;
         memcpy(out + n, "\r\n", 2); n += 2;
     }
 
@@ -172,7 +205,7 @@ int main(void)
     while(!essentials());
     Tick_DelayMs(300);      /* 外设供电稳定 */
 
-    /* ---- 初始化 BLE/USART2 PD2 TX 921600 串口输出 ---- */
+    /* ---- 初始化 BLE/USART2 PD2 TX (115200 → AT改波特率 → 921600) ---- */
     BLE_Init();
     DBG("[BOOT] BLE init OK\r\n");
 

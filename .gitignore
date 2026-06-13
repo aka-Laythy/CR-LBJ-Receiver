@@ -10,23 +10,28 @@ obj/
 *.su
 *.lib
 
-# ===== MounRiver Studio / IDE =====
-.metadata/
-.settings/
-.launches/
-Debug/
-Release/
-*.mrs-workspace
-*.code-workspace
+# ===== AI 工具（Aider / Kilo）=====
+.aider*
+.kilo/
 
-# ===== Kilo AI =====
-.kilo/node_modules/
-.kilo/agent-manager.json.bak*
+# ===== MounRiver Studio / IDE 配置 =====
+.mrs/
+.cproject
+.project
+.template
+
+# ===== IDE 工作区 / 项目文件 =====
+CR-LBJ-Receiver-CH32V005-proj.code-workspace
+CR-LBJ-Receiver-CH32V005-proj.launch
+CR-LBJ-Receiver-CH32V005-proj.wvproj
 
 # ===== VS Code =====
 .vscode/
 
-# ===== Python =====
+# ===== 规范 / 工作流 =====
+.spec-workflow/
+
+# ===== Python 构建缓存 =====
 __pycache__/
 *.pyc
 *.pyo
@@ -34,14 +39,14 @@ __pycache__/
 dist/
 build/
 
-# ===== 非代码文件 =====
+# ===== 非代码数据文件 =====
 0-AI_Files/
 
-# ===== IDE / 编辑器 =====
-.vscode/
-.mrs/
+# ===== Kilo / Agent 配置 =====
+AGENTS.md
+kilo.json
 
-# ===== 系统 / OS =====
+# ===== 操作系统文件 =====
 .DS_Store
 Thumbs.db
 Desktop.ini
@@ -49,19 +54,12 @@ Desktop.ini
 *.swo
 *~
 
-# ===== 临时文件 =====
+# ===== 临时 / 日志文件 =====
 *.bak
 *.tmp
 *.log
 *.val
 cache.db*
 
-# ===== 其他破玩意儿 =====
-*.aider.chat.history.md
-*.aider.input.history
-*.cproject
-*.project
-*.template
-AGENTS.md
-kilo.json
+# ===== 其他非代码文件 =====
 *.pdf

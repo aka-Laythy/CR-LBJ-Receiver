@@ -1,5 +1,6 @@
 #include "sx1276.h"
 #include "SPI_Bus/spi_bus.h"
+#include "SPI_Flash/spi_flash.h"
 #include "Tick.h"
 #include <string.h>
 
@@ -23,6 +24,7 @@
 #define REG_SYNCCONFIG          0x27
 #define REG_PACKETCONFIG1       0x30
 #define REG_PAYLOADLENGTH       0x32
+#define REG_OOKPEAK             0x14
 #define REG_DIOMAPPING1         0x40
 #define REG_DIOMAPPING2         0x41
 #define REG_VERSION             0x42
@@ -40,9 +42,8 @@ static const uint32_t LBJ_FRF[] = {
     821825000UL,
 };
 
-/* RXBW: 20.8 kHz @ Fxosc = 32 MHz (高4位=0x1=20.8kHz, 低4位抖动)
- *   SX1276 BW 由 RegValue[7:4] 决定, 见数据手册Rev7表14 */
-#define RXBW_20K8 0x14
+/* RXBW: RegRxBw=0x15 → 手册 SSB=10.4kHz, 等效双边~20.8kHz (Mant=24 Exp=5) */
+#define RXBW_10K4 0x15
 
 /* ================================================================
  *  SPI 寄存器访问
@@ -130,21 +131,19 @@ int8_t SX1276_Init(void)
     SX1276_WriteReg(REG_FDEVMSB, 0x00);
     SX1276_WriteReg(REG_FDEVLSB, 0x4A);
 
-    /* RX 带宽: 20.8 kHz — 匹配 1200bps FSK (Carson≈11.4kHz, 余量~2x) */
-    SX1276_WriteReg(REG_RXBW,  RXBW_20K8);
+    /* RX 带宽: 0x15 → 手册 10.4 kHz SSB, 等效总通道约 20.8 kHz
+       匹配 1200bps 2FSK (Carson≈11.4kHz, 余量~2x) */
+    SX1276_WriteReg(REG_RXBW,  RXBW_10K4);
 
-    /* AFC 带宽: 500 kHz (高4位=8) — 只负责 PLL 捕获范围, 不决定信号选通
-       SX1276 BW 由 RegValue[7:4] 查表 @32MHz:
-       高4位=7 → 250kHz, 捕获±125kHz
-       高4位=8 → 500kHz, 捕获±250kHz — 覆盖实测 ±130kHz
-       RXBW(20.8kHz) 才是通道滤波器, AFC 捕获后信号自动落入其中 */
-    SX1276_WriteReg(REG_AFCBW, 0x80);
+    /* AFC 带宽: 0x01 → 手册 250.0 kHz SSB, 等效总通道约 500 kHz
+       只负责 AFC 阶段捕获大频偏, 不决定信号选通
+       捕获范围 ±250 kHz — 覆盖实测 ±130 kHz 绰绰有余
+       RegRxBw(10.4 kHz SSB) 才是通信阶段通道滤波器,
+       AFC 完成后接收机自动回到窄带通信带宽 */
+    SX1276_WriteReg(REG_AFCBW, 0x01);
 
     /* LNA: AGC 自动管理增益, 开启高频助推 */
     SX1276_WriteReg(REG_LNA, 0x21);
-
-    /* RX 配置: AGC Auto + AFC Auto */
-    SX1276_WriteReg(REG_RXCONFIG, 0x09);
 
     /* 前导码检测: 2 bytes, tolerance 10, 启用检测器 */
     SX1276_WriteReg(REG_PREAMBLEDET, 0xAA);
@@ -160,10 +159,64 @@ int8_t SX1276_Init(void)
     SX1276_WriteReg(REG_DIOMAPPING1, 0xC0);
     SX1276_WriteReg(REG_DIOMAPPING2, 0x00);
 
+    /* Rx 启动选项: AgcAutoOn=1, 前导码检测启动 */
+    SX1276_WriteReg(REG_RXCONFIG, 0x09);
+
+    /* Bit同步器默认开启(RegOokPeak bit5=1), 显式确认 */
+    SX1276_WriteReg(REG_OOKPEAK, 0x28);
+
     /* 进入连续接收 */
     SX1276_EnterRx();
 
+    /* 从 Flash 加载保存的带宽配置 (若有效则覆盖当前 RegRxBw/RegAfcBw) */
+    SX1276_LoadBwConfig();
+
     return SX1276_OK;
+}
+
+/* ================================================================
+ *  Flash 带宽配置加载/保存
+ *  存储格式 (8 bytes @ FLASH_PART_CONFIG_ADDR):
+ *    [0:3] Magic "SXBW"
+ *    [4]   Version (0x01)
+ *    [5]   RegRxBw
+ *    [6]   RegAfcBw
+ *    [7]   Checksum (XOR of bytes 0-6)
+ * ================================================================ */
+void SX1276_LoadBwConfig(void)
+{
+    uint8_t buf[CONFIG_DATA_SIZE];
+    SPI_Flash_ReadData(FLASH_PART_CONFIG_ADDR, buf, CONFIG_DATA_SIZE);
+
+    uint32_t magic = ((uint32_t)buf[0] << 24) | ((uint32_t)buf[1] << 16)
+                   | ((uint32_t)buf[2] << 8)  | buf[3];
+    uint8_t ck = 0;
+    for (uint8_t i = 0; i < CONFIG_DATA_SIZE - 1; i++) ck ^= buf[i];
+
+    if (magic != CONFIG_MAGIC || ck != buf[CONFIG_OFFSET_CHECKSUM])
+        return;
+
+    SX1276_WriteReg(REG_RXBW,  buf[CONFIG_OFFSET_RXBW]);
+    SX1276_WriteReg(REG_AFCBW, buf[CONFIG_OFFSET_AFCBW]);
+}
+
+void SX1276_SaveBwConfig(void)
+{
+    uint8_t buf[CONFIG_DATA_SIZE];
+
+    buf[0] = (uint8_t)(CONFIG_MAGIC >> 24);
+    buf[1] = (uint8_t)(CONFIG_MAGIC >> 16);
+    buf[2] = (uint8_t)(CONFIG_MAGIC >> 8);
+    buf[3] = (uint8_t)(CONFIG_MAGIC);
+    buf[CONFIG_OFFSET_VERSION] = 1;
+    buf[CONFIG_OFFSET_RXBW]   = SX1276_ReadReg(REG_RXBW);
+    buf[CONFIG_OFFSET_AFCBW]  = SX1276_ReadReg(REG_AFCBW);
+    buf[CONFIG_OFFSET_CHECKSUM] = 0;
+    for (uint8_t i = 0; i < CONFIG_DATA_SIZE - 1; i++)
+        buf[CONFIG_OFFSET_CHECKSUM] ^= buf[i];
+
+    SPI_Flash_SectorErase(FLASH_PART_CONFIG_ADDR);
+    SPI_Flash_PageProgram(FLASH_PART_CONFIG_ADDR, buf, CONFIG_DATA_SIZE);
 }
 
 /* ================================================================

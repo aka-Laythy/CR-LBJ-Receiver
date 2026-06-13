@@ -310,6 +310,8 @@ void OLED_SetCursor(uint8_t Page, uint8_t X)
 
 /*工具函数仅供内部部分函数使用*/
 
+#if 0 /* 仅供已移除的 ShowNum/绘图函数使用 */
+
 /**
   * 函    数：次方函数
   * 参    数：X 底数
@@ -379,6 +381,8 @@ uint8_t OLED_IsInAngle(int16_t X, int16_t Y, int16_t StartAngle, int16_t EndAngl
 	}
 	return 0;		//不满足以上条件，则判断判定指定点不在指定角度
 }
+
+#endif /* 已移除函数 */
 
 /*********************工具函数*/
 
@@ -548,15 +552,23 @@ void OLED_ReverseArea(int16_t X, int16_t Y, uint8_t Width, uint8_t Height)
   */
 void OLED_ShowChar(int16_t X, int16_t Y, char Char, uint8_t FontSize)
 {
-	if (FontSize == OLED_8X16)		//字体为宽8像素，高16像素
+	if (FontSize == OLED_8X16)
 	{
-		/*将ASCII字模库OLED_F8x16的指定数据以8*16的图像格式显示*/
-		OLED_ShowImage(X, Y, 8, 16, OLED_F8x16[Char - ' ']);
+		if ((uint8_t)Char == 0xB0) {
+			static const uint8_t deg[] = {0x00,0x06,0x0F,0x09,0x09,0x0F,0x06,0x00, 0,0,0,0,0,0,0,0};
+			OLED_ShowImage(X, Y, 8, 16, deg);
+		} else {
+			OLED_ShowImage(X, Y, 8, 16, OLED_F8x16[Char - ' ']);
+		}
 	}
-	else if(FontSize == OLED_6X8)	//字体为宽6像素，高8像素
+	else if(FontSize == OLED_6X8)
 	{
-		/*将ASCII字模库OLED_F6x8的指定数据以6*8的图像格式显示*/
-		OLED_ShowImage(X, Y, 6, 8, OLED_F6x8[Char - ' ']);
+		if ((uint8_t)Char == 0xB0) {
+			static const uint8_t deg[] = {0x00,0x06,0x0F,0x0F,0x06,0x00};
+			OLED_ShowImage(X, Y, 6, 8, deg);
+		} else {
+			OLED_ShowImage(X, Y, 6, 8, OLED_F6x8[Char - ' ']);
+		}
 	}
 }
 
@@ -707,6 +719,10 @@ void OLED_ShowGBString(int16_t X, int16_t Y, const uint8_t *gb_str, uint8_t Font
 			OLED_ShowChar(X + XOffset, Y, (char)gb_str[i], FontSize);
 			XOffset += FontSize;
 			i++;
+		} else if (gb_str[i] == 0xB0) {
+			OLED_ShowChar(X + XOffset, Y, (char)0xB0, FontSize);
+			XOffset += FontSize;
+			i++;
 		} else {
 			uint16_t code = ((uint16_t)gb_str[i] << 8) | gb_str[i + 1];
 			SPI_Flash_ReadFontGB2312(code, fb);
@@ -718,6 +734,7 @@ void OLED_ShowGBString(int16_t X, int16_t Y, const uint8_t *gb_str, uint8_t Font
 	}
 }
 
+#if 0 /* 未使用 */
 /**
   * 函    数：OLED显示数字（十进制，正整数）
   * 参    数：X 指定数字左上角的横坐标，范围：-32768~32767，屏幕区域：0~127
@@ -837,6 +854,7 @@ void OLED_ShowBinNum(int16_t X, int16_t Y, uint32_t Number, uint8_t Length, uint
 		OLED_ShowChar(X + i * FontSize, Y, Number / OLED_Pow(2, Length - i - 1) % 2 + '0', FontSize);
 	}
 }
+#endif /* 未使用 */
 
 /**
   * 函    数：OLED显示浮点数字（十进制，小数）
@@ -936,6 +954,7 @@ void OLED_ShowImage(int16_t X, int16_t Y, uint8_t Width, uint8_t Height, const u
 	}
 }
 
+#if 0 /* 未使用 */
 /**
   * 函    数：OLED使用printf函数打印格式化字符串（支持ASCII码和中文混合写入）
   * 参    数：X 指定格式化字符串左上角的横坐标，范围：-32768~32767，屏幕区域：0~127
@@ -961,6 +980,9 @@ void OLED_Printf(int16_t X, int16_t Y, uint8_t FontSize, char *format, ...)
 	va_end(arg);							//结束变量arg
 	OLED_ShowString(X, Y, String, FontSize);//OLED显示字符数组（字符串）
 }
+#endif /* 未使用 */
+
+#if 0 /* 未使用 */
 
 /**
   * 函    数：OLED在指定位置画一个点
@@ -1294,6 +1316,8 @@ void OLED_DrawCircle(int16_t X, int16_t Y, uint8_t Radius, uint8_t IsFilled)
 		}
 	}
 }
+
+#endif /* 未使用 */
 
 /**
   * 函    数：OLED画椭圆
