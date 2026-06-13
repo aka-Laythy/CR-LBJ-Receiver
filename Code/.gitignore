@@ -1,0 +1,39 @@
+# ===== 编译输出 =====
+obj/
+*.o
+*.d
+*.elf
+*.hex
+*.bin
+*.lst
+*.map
+*.su
+*.lib
+
+# ===== AI 工具（Aider / Kilo）=====
+.aider*
+.kilo/
+
+# ===== 工作区文件（本地独有）=====
+CR-LBJ-Receiver-CH32V005-proj.code-workspace
+
+# ===== 规范 / 工作流 =====
+.spec-workflow/
+
+# ===== Python 构建缓存 =====
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# ===== 非代码数据文件 =====
+0-AI_Files/
+
+# ===== Kilo / Agent 配置 =====
+AGENTS.md
+kilo.json
+
+# ===== 其他非代码文件 =====
+*.pdf
